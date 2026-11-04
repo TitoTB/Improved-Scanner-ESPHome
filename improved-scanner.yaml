@@ -1,0 +1,197 @@
+# Board: Generic ESP32-S3 Board (Generic)
+# Definition: definitions/boards/generic-esp32s3/manifest.yaml
+
+esphome:
+  name: improved-scanner
+  friendly_name: Improved Scanner
+  on_boot:
+    priority: -100
+    then:
+      - delay: 2s
+      # Registros 0x001B–0x001E:
+      # desactivar los efectos de colores y dejar
+      # habilitado el indicador verde de lectura correcta.
+      - uart.write:
+          id: uart_gm60
+          data: [
+            0x7E, 0x00, 0x08, 0x04,
+            0x00, 0x1B,
+            0x0A, 0x00, 0x00, 0x00,
+            0xAB, 0xCD
+          ]
+  
+esp32:
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "REEMPLAZA_CON_TU_API_ENCRYPTION_KEY"
+
+ota:
+  - platform: esphome
+    password: "REEMPLAZA_CON_TU_OTA_PASSWORD"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: Improved Scanne Fallback Hotspot
+    password: "REEMPLAZA_CON_TU_FALLBACK_PASSWORD"
+    
+captive_portal:
+
+## LED integrado en la placa
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: led_integrado
+    name: "LED"
+    pin: GPIO48
+    num_leds: 1
+    chipset: ws2812
+    rgb_order: GRB
+
+script:
+  - id: efecto_lectura
+    mode: restart
+    then:
+      - rtttl.play:
+          id: buzzer
+          rtttl: "Beep:d=4,o=5,b=500:c"      
+      # Verde fijo durante 5 segundos
+      - light.turn_on:
+          id: led_integrado
+          brightness: 100%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - delay: 5s
+      # Parpadeo verde durante 2 segundos
+      - repeat:
+          count: 2
+          then:
+            - light.turn_off: led_integrado
+            - delay: 1s
+            - light.turn_on:
+                id: led_integrado
+                brightness: 100%
+                red: 0%
+                green: 100%
+                blue: 0%
+            - delay: 1s
+      # Apagado final
+      - light.turn_off: led_integrado
+    
+## Escáner de Códigos de barras / QR
+
+uart:
+  id: uart_gm60
+  rx_pin: GPIO18       # Conectar al TXD amarillo del GM60
+  tx_pin: GPIO17       # Conectar al RXD verde del GM60
+  baud_rate: 9600
+  data_bits: 8
+  parity: NONE
+  stop_bits: 1
+
+  debug:
+    direction: RX
+    dummy_receiver: true
+    after:
+      delimiter: "\n"
+    sequence:
+      - lambda: |-
+          // Ignorar respuestas binarias de configuración del GM60.
+          if (bytes.size() >= 2 &&
+              bytes[0] == 0x02 &&
+              bytes[1] == 0x00) {
+            return;
+          }
+
+          std::string codigo(bytes.begin(), bytes.end());
+
+          while (!codigo.empty() &&
+                 (codigo.back() == '\r' ||
+                  codigo.back() == '\n' ||
+                  codigo.back() == ' ')) {
+            codigo.pop_back();
+          }
+
+          if (!codigo.empty()) {
+            id(codigo_leido).publish_state(codigo);
+            id(efecto_lectura).execute();
+            ESP_LOGI("gm60", "Código: %s", codigo.c_str());
+          }
+
+## Lector NFC
+
+i2c:
+  sda: GPIO36
+  scl: GPIO37
+  scan: true
+  
+pn532_i2c:
+  update_interval: 1s
+  on_tag:
+    then:
+      - text_sensor.template.publish:
+          id: nfc_leida
+          state: !lambda "return x;"
+
+      - script.execute: efecto_lectura
+
+      - logger.log:
+          format: "Etiqueta NFC leída: %s"
+          args: ["x.c_str()"]
+          
+## Lecturas
+
+text_sensor:
+  - platform: template
+    id: codigo_leido
+    name: "Código leído"
+    icon: mdi:barcode-scan
+  - platform: template
+    id: nfc_leida
+    name: "NFC leída"
+    icon: mdi:nfc-variant
+
+## Botón
+
+binary_sensor:
+  - platform: gpio
+    name: "Botón"
+    id: boton_principal
+    internal: true
+    pin:
+      number: GPIO4
+      mode: input_pulldown
+    on_press:
+      - if:
+          condition:
+            light.is_off: led_integrado
+          then:
+            - light.turn_on:
+                id: led_integrado
+                brightness: 100%
+                red: 100%
+                green: 100%
+                blue: 100%
+          else:
+            - light.turn_off: led_integrado
+
+## Buzzer
+
+output:
+  - platform: ledc
+    pin: GPIO21
+    id: buzzer_output
+
+rtttl:
+  id: buzzer
+  output: buzzer_output
+  gain: 100%
