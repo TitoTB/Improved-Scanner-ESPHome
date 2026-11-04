@@ -11,6 +11,7 @@ A DIY shopping scanner powered by ESPHome and Home Assistant. Scan an empty pack
 - [PN532 NFC reader](https://s.click.aliexpress.com/e/_c3lUrwdt)
 - [Push button](https://s.click.aliexpress.com/e/_c3oDcN6n)
 - [Passive buzzer](https://link.amazon/B0fJcoRXV)
+- [3D-printed enclosure (STL design)](https://aguacatec.es/disenos-3d/improved-scanner/)
 
 You will also need wires, USB power and NFC tags for items without barcodes.
 
