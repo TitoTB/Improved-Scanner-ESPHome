@@ -10,7 +10,7 @@ A DIY shopping scanner powered by ESPHome and Home Assistant. Scan an empty pack
 - [GM60 barcode and QR scanner](https://s.click.aliexpress.com/e/_c43Qjxg3)
 - [PN532 NFC reader](https://s.click.aliexpress.com/e/_c3lUrwdt)
 - [Push button](https://s.click.aliexpress.com/e/_c3oDcN6n)
-- [Passive buzzer](https://s.click.aliexpress.com/e/_c3ZHOTJ1)
+- [Passive buzzer](https://link.amazon/B0fJcoRXV)
 
 You will also need wires, USB power and NFC tags for items without barcodes.
 
