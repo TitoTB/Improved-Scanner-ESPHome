@@ -1,0 +1,1 @@
+# Improved-Scanner-ESPHome
