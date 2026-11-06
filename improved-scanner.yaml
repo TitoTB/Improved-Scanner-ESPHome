@@ -8,6 +8,9 @@ esphome:
     priority: -100
     then:
       - delay: 2s
+      - text_sensor.template.publish:
+          id: codigo_leido
+          state: ""              
       # Registros 0x001B–0x001E:
       # desactivar los efectos de colores y dejar
       # habilitado el indicador verde de lectura correcta.
@@ -86,6 +89,13 @@ script:
             - delay: 1s
       # Apagado final
       - light.turn_off: led_integrado
+  - id: limpiar_codigo_leido
+    mode: restart
+    then:
+      - delay: 500ms
+      - text_sensor.template.publish:
+          id: codigo_leido
+          state: ""
     
 ## Escáner de Códigos de barras / QR
 
@@ -123,6 +133,7 @@ uart:
 
           if (!codigo.empty()) {
             id(codigo_leido).publish_state(codigo);
+            id(limpiar_codigo_leido).execute();
             id(efecto_lectura).execute();
             ESP_LOGI("gm60", "Código: %s", codigo.c_str());
           }
